@@ -1,15 +1,29 @@
-from pyflink.table import EnvironmentSettings, TableEnvironment
-import pandas as pd
+from confluent_kafka import Producer
+import json, random, time
 from faker import Faker
-import random
-import time
+import os
+
+fake = Faker()
+
+api_key = os.environ.get("CONFLUENT_API_KEY")
+api_secret = os.environ.get("CONFLUENT_API_SECRET")
+cluster_url = os.environ.get("YOUR_CLUSTER_URL")
+sasl_ssl_key = os.environ.get("SASL_SSL")
+
+conf = {
+    'bootstrap.servers': cluster_url,
+    'security.protocol': sasl_ssl_key,
+    'sasl.mechanisms': 'PLAIN',
+    'sasl.username': api_key,
+    'sasl.password': api_secret,
+}
+producer = Producer(conf)
 
 fake = Faker()
 records = 1000
 maxTransaction = 10000
+counter = 0
 
-env_settings = EnvironmentSettings.in_streaming_mode()
-table_env = TableEnvironment.create(env_settings)
 
 merchants = [
     'Amazon', 'Walmart', 'Target', 'Costco', 'Best Buy', 'Home Depot', 'Lowe\'s',
@@ -25,72 +39,23 @@ merchants = [
     'CVS Pharmacy', 'Walgreens', 'Rite Aid', 'GNC', 'Planet Fitness',
 ]
 
-conf = {
-    'bootstrap.servers': 'localhost:9092',  
-    'client.id': 'transaction-producer'
-}
-
 def generate_data():
     for _ in range(records):
         yield {
-            'TransactionID': fake.uuid4(),
-            'CardID': fake.credit_card_number(),
+            'TransactionID': fake.uuid4(), 
+            'CardID': fake.credit_card_number(),  
             'Merchant': random.choice(merchants),
             'Amount': round(random.uniform(0, maxTransaction), 2),
-            'TimestampT': str(fake.date_time_between(start_date='-1d', end_date='now'))
+            'TimestampT': fake.date_time_between(
+                start_date='-1d', end_date='now'
+            ).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3] 
         }
 
 while True:
-    df = pd.DataFrame(generate_data())
-    print(df.head(5))
-    df.to_csv("/tmp/fake_data.csv", index=False)
+    counter += 1
+    data = generate_data()
+    producer.produce("transactions", key=str(data["card_id"]), value=json.dumps(data))
+    producer.flush()
+    print(f"Sent: {counter} batch(es)")
+    time.sleep(1)
 
-    table_env.execute_sql("DROP TABLE IF EXISTS source")
-    table_env.execute_sql(f"""
-    CREATE TABLE source (
-        TransactionID INT,
-        CardID INT,
-        Merchant STRING,
-        amount DOUBLE,
-        TimestampT TIMESTAMP(3)
-    ) WITH (
-        'connector' = 'filesystem',
-        'path' = 'file:///tmp/fake_data.csv',
-        'format' = 'csv'
-    )
-""")
-
-    table_env.execute_sql("DROP TABLE IF EXISTS sink")
-    table_env.execute_sql(f"""
-    CREATE TABLE source (
-        TransactionID INT,
-        CardID INT,
-        Merchant STRING,
-        amount DOUBLE,
-        TimestampT TIMESTAMP(3)
-    ) WITH (
-        'connector' = 'filesystem',
-        'path' = 'file:///tmp/fake_data.csv',
-        'format' = 'csv'
-    )
-""")
-
-    table_env.execute_sql("""
-    CREATE TABLE sink (
-        TransactionID INT,
-        CardID INT,
-        Merchant STRING,
-        amount DOUBLE,
-        TimestampT TIMESTAMP(3)
-    ) WITH (
-        'connector' = 'print'
-    )
-""")
-    table_env.execute_sql("""
-    INSERT INTO sink
-    SELECT TransactionID, CardID, Merchant, amount,TimestampT
-    FROM source
-    WHERE amount > 0
-""")
-
-    time.sleep(10)
