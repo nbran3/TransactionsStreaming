@@ -14,6 +14,6 @@ to generate synthetic credit card transactions. This library allowed me to creat
 (their servers) and then pushed into BigQuery using a sink connector from Confluent. Other than the data generation, most of this project was making sure the connections were in place. The BigQuery table was manually defined by me as well. I used Looker Studio for the dashboard as it is very easy to connect to BigQuery, but I do not have the 
 premium plan for Looker, so my dashboard would not update until I refreshed the page. 
 
-Dashboard - https://lookerstudio.google.com/u/0/reporting/e86c0b66-065d-42d9-b059-e1e49301ffd2/page/PhaZF
+Dashboard - https://lookerstudio.google.com/s/hZlJAhsbNpo
 
 Video of pipeline - https://www.youtube.com/watch?v=g1BVaShAr2w
