@@ -24,6 +24,7 @@ producer = Producer(conf)
 fake = Faker()
 records = 1000
 maxTransaction = 10000
+counter = 0
 
 
 merchants = [
@@ -61,6 +62,7 @@ def generate_data():
 try:
     print("Starting producer. Press Ctrl+C to stop.")
     while True:
+        counter += 1
         for data in generate_data():
             producer.produce(
                 "transcations",
@@ -68,7 +70,7 @@ try:
                 value=json.dumps(data)
             )
             producer.poll(0)  
-        print("✅ Batch sent, sleeping...")
+        print(f"Batch {counter} sent, sleeping...")
         time.sleep(2)  
 except KeyboardInterrupt:
     print("\n Stopping producer...")
