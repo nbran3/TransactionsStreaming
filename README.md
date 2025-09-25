@@ -15,3 +15,5 @@ to generate synthetic credit card transactions. This library allowed me to creat
 premium plan for Looker, so my dashboard would not update until I refreshed the page. 
 
 Dashboard - https://lookerstudio.google.com/u/0/reporting/e86c0b66-065d-42d9-b059-e1e49301ffd2/page/PhaZF
+
+Video of pipeline - https://www.youtube.com/watch?v=g1BVaShAr2w
