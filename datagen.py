@@ -1,18 +1,20 @@
 from confluent_kafka import Producer
+from dotenv import load_dotenv
 import json, random, time
 from faker import Faker
 import os
+
+load_dotenv()
 
 fake = Faker()
 
 api_key = os.environ.get("CONFLUENT_API_KEY")
 api_secret = os.environ.get("CONFLUENT_API_SECRET")
-cluster_url = os.environ.get("YOUR_CLUSTER_URL")
-sasl_ssl_key = os.environ.get("SASL_SSL")
+cluster_url = os.environ.get("CLUSTER_URL")
 
 conf = {
     'bootstrap.servers': cluster_url,
-    'security.protocol': sasl_ssl_key,
+    'security.protocol': 'SASL_SSL',
     'sasl.mechanisms': 'PLAIN',
     'sasl.username': api_key,
     'sasl.password': api_secret,
@@ -22,7 +24,6 @@ producer = Producer(conf)
 fake = Faker()
 records = 1000
 maxTransaction = 10000
-counter = 0
 
 
 merchants = [
@@ -39,6 +40,12 @@ merchants = [
     'CVS Pharmacy', 'Walgreens', 'Rite Aid', 'GNC', 'Planet Fitness',
 ]
 
+def delivery_report(err, msg):
+    if err:
+        print(f"Delivery failed: {err}")
+    else:
+        print(f"Message delivered to {msg.topic()} [{msg.partition()}]")
+
 def generate_data():
     for _ in range(records):
         yield {
@@ -51,11 +58,22 @@ def generate_data():
             ).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3] 
         }
 
-while True:
-    counter += 1
-    data = generate_data()
-    producer.produce("transactions", key=str(data["card_id"]), value=json.dumps(data))
+try:
+    print("Starting producer. Press Ctrl+C to stop.")
+    while True:
+        for data in generate_data():
+            producer.produce(
+                "transcations",
+                key=str(data["TransactionID"]),
+                value=json.dumps(data)
+            )
+            producer.poll(0)  
+        print("✅ Batch sent, sleeping...")
+        time.sleep(2)  
+except KeyboardInterrupt:
+    print("\n Stopping producer...")
+finally:
+
     producer.flush()
-    print(f"Sent: {counter} batch(es)")
-    time.sleep(1)
+    print("All messages flushed. Exiting.")
 
